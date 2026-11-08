@@ -56,35 +56,72 @@ The screenshots were captured from the running application using synthetic local
 
 ### Docker Compose (recommended)
 
-CubyCrate runs as one container with the frontend embedded in the Go backend.
+CubyCrate runs as a single container with the frontend embedded in the Go backend.
 
-> **Image availability:** The official container image `ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2` is staged for the upcoming release and **is not yet published to GHCR** (blocked on T8 release gate).
->
-> - **Once published to GHCR (Quick Start):** Users only need Docker + Docker Compose and a downloaded `compose.yaml`. No repository clone or local build is required:
->   ```bash
->   curl -fsSLO https://raw.githubusercontent.com/septian-padli/cubycrate/main/compose.yaml
->   export CUBYCRATE_IMAGE=ghcr.io/septian-padli/cubycrate
->   export CUBYCRATE_VERSION=v0.0.1-alpha.2
->   docker pull ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2
->   docker compose pull
->   docker compose up -d
->   curl -f http://127.0.0.1:8383/health
->   ```
->   The health probe returns `{"status":"ok"}` with HTTP 200. Open `http://<server-ip>:8383/setup` to configure the first administrator.
-> - **Until GHCR publish / Local Development:** Clone the full source repository because Docker builds need the complete build context:
->   ```bash
->   git clone https://github.com/septian-padli/cubycrate.git
->   cd cubycrate
->   docker build -t cubycrate:local .
->   docker compose up -d
->   ```
-Compose keeps the container port at `8383` and publishes host port `8383` by default. Set `CUBYCRATE_PORT=9000` to override the host port; set `CUBYCRATE_VOLUME_NAME` before Compose commands to change the named volume from `cubycrate_data`. Restrict direct HTTP access with a firewall.
+#### Prerequisites
 
+- Docker Engine >= 24.0 and Docker Compose >= 2.20
+- Supported architectures: `linux/amd64` and `linux/arm64`
+- Host port `8383` available (or configure `CUBYCRATE_PORT`)
+
+#### 1. Download official Compose file
+
+```bash
+mkdir -p cubycrate && cd cubycrate
+curl -fsSLO https://raw.githubusercontent.com/septian-padli/cubycrate/main/compose.yaml
+```
+
+#### 2. Start CubyCrate
+
+```bash
+docker compose up -d
+```
+
+Docker automatically downloads the official multi-architecture image (`ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2`). No repository clone, Go compiler, Bun runtime, or local build is required.
+
+#### 3. Verify status
+
+```bash
+docker compose ps
+curl -f http://127.0.0.1:8383/health
+```
+
+The health probe returns `{"status":"ok"}` with HTTP 200.
+
+#### 4. Complete setup wizard
+
+Open `http://localhost:8383/setup` (or `http://<server-ip>:8383/setup`) in your browser to configure the first administrator account and set up storage.
+
+#### Data persistence & volume lifecycle
+
+- **Named volume (default):** `cubycrate_data:/app/data` stores SQLite (`db/cubycrate.db`, WAL), generated secrets (`secrets/jwt.key`, `secrets/master.key`), and local file storage (`storage/default`).
+- **Persistence:** Container restarts (`docker compose restart cubycrate`) and standard updates (`docker compose pull && docker compose up -d`) preserve all data.
+- **Safety warning:** **Never run `docker compose down -v`** for updates or normal shutdowns; the `-v` flag permanently destroys the named volume and all stored data.
+- **Clean break notice:** `v0.0.1-alpha.2` is a prerelease under the new CubyCrate architecture. Direct in-place upgrades from historical CubyCloud `v0.0.1-alpha.1` are unsupported.
+
+#### Common management commands
+
+- View logs: `docker compose logs -f cubycrate`
+- Application readiness probe: `curl -f http://127.0.0.1:8383/api/health`
+- Restart service: `docker compose restart cubycrate`
+- Stop service: `docker compose stop cubycrate`
+
+#### Configuration overrides
+
+Set these environment variables before running Compose commands:
+- `CUBYCRATE_PORT`: Host port to publish (default: `8383`, e.g. `CUBYCRATE_PORT=9000 docker compose up -d`).
+- `CUBYCRATE_VOLUME_NAME`: Named volume for data persistence (default: `cubycrate_data`).
+- `CUBYCRATE_CONTAINER_NAME`: Container name (default: `cubycrate`).
+- `CUBYCRATE_VERSION`: Image tag override (default: `v0.0.1-alpha.2`).
+- `CUBYCRATE_IMAGE`: Image repository override (default: `ghcr.io/septian-padli/cubycrate`).
 
 #### Updating CubyCrate
 
-The official `ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2` image will be published via GitHub Release in T8; it is not available before that workflow succeeds. Once published, `docker compose pull` then `docker compose up -d` updates the instance. For development, run `git pull` from the cloned repository root and rebuild with `docker build -t cubycrate:local .` before `docker compose up -d`.
-
+To update an existing installation to a newer image release:
+```bash
+docker compose pull
+docker compose up -d
+```
 #### Docker Volume & Storage Configuration
 
 - **Named volume (default):** `cubycrate_data:/app/data` stores SQLite (`db/cubycrate.db`, WAL), generated secrets (`secrets/jwt.key`, `secrets/master.key`), and local file storage (`storage/default`).
@@ -104,9 +141,35 @@ The persistent application tree under `/app/data` contains the SQLite database (
 Use the [backup and disaster recovery runbook](docs/backup-restore.md) for cold full-volume backup and isolated restore. Never archive only the live SQLite database file, restore directly over an existing volume, or run `docker compose down -v` for backup/restore.
 
 Detailed backup, disaster recovery, upgrade, and rollback instructions are in [docs/backup-restore.md](docs/backup-restore.md) and [docs/release-guide.md](docs/release-guide.md).
-### Run from source
+### Development workflow
 
-Requirements: **Go 1.25 or newer**, **Bun 1.x**, and OpenSSL to generate a random development secret. Run the backend and frontend in separate terminals from a local checkout.
+Development workflows are separated from the official pre-built installation path.
+
+#### Local Docker build
+
+To test local modifications inside a container using a full source clone:
+
+```bash
+git clone https://github.com/septian-padli/cubycrate.git
+cd cubycrate
+docker build -t cubycrate:local .
+CUBYCRATE_IMAGE=cubycrate CUBYCRATE_VERSION=local docker compose up -d
+```
+
+To run a development instance alongside an existing official instance on the same host without port or volume collisions:
+
+```bash
+CUBYCRATE_IMAGE=cubycrate \
+CUBYCRATE_VERSION=local \
+CUBYCRATE_PORT=8384 \
+CUBYCRATE_CONTAINER_NAME=cubycrate-dev \
+CUBYCRATE_VOLUME_NAME=cubycrate_dev_data \
+docker compose up -d
+```
+
+#### Native source development (Go + Bun)
+
+Requirements: **Go 1.25 or newer**, **Bun 1.x**, and OpenSSL to generate a random development secret. Run the backend and frontend in separate terminals from a local checkout:
 
 **Terminal 1: backend**
 
@@ -126,7 +189,8 @@ VITE_API_PROXY_TARGET=http://localhost:8383 \
 bun run dev --host 127.0.0.1 --port 5188
 ```
 
-Open [http://localhost:5188/setup](http://localhost:5188/setup), create the first administrator, and complete the setup wizard.
+Open [http://localhost:5188/setup](http://localhost:5188/setup), create the first administrator, and complete the setup wizard. See [Development Guide](docs/development.md) for full stack details and MinIO integration.
+
 ## System requirements
 
 CubyCrate is designed to run efficiently on low-power homelab servers, single-board computers, and virtual private servers.

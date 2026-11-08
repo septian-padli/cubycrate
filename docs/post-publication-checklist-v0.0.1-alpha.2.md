@@ -32,8 +32,9 @@ This checklist is to be executed by the repository owner immediately following t
   ```
 - [ ] **Start Fresh Container via Compose using Published GHCR Image:**
   ```bash
-  CUBYCRATE_IMAGE=ghcr.io/septian-padli/cubycrate CUBYCRATE_VERSION=v0.0.1-alpha.2 docker compose up -d
+  docker compose up -d
   ```
+  *(No environment variables required; default `compose.yaml` targets official GHCR `v0.0.1-alpha.2`.)*
 - [ ] **Health Probe:**
   ```bash
   curl -fsS http://127.0.0.1:8383/health
