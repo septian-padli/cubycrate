@@ -19,7 +19,7 @@ CubyCrate strictly adheres to [Semantic Versioning 2.0.0](https://semver.org/):
 | **Release Candidate** | `v1.0.0-rc.1` | Yes | `:v1.0.0-rc.1`, `:rc` | Production candidate validation |
 | **Stable** | `v1.0.0` | No | `:v1.0.0`, `:1.0.0`, `:1.0`, `:latest` | General availability; only stable releases update `:latest` |
 
-> **Critical Safety Rule:** Only official stable releases update the `:latest` Docker tag on GHCR. Routine pushes to `dev` or `main` trigger validation only. The official image `ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2` is staged for T8 and **is not yet published to GHCR**.
+> **Critical Safety Rule:** Only official stable releases update the `:latest` Docker tag on GHCR. Prereleases update exact version tags (e.g. `:v0.0.1-alpha.2`) and channel tags (e.g. `:alpha`), never `:latest`.
 
 ---
 
@@ -27,37 +27,33 @@ CubyCrate strictly adheres to [Semantic Versioning 2.0.0](https://semver.org/):
 
 ### Option A: Using Pre-built GHCR Image (Quick Start)
 
-> **Image Availability:** The official container image `ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2` is staged for T8 and **is not yet published to GHCR**. Run these commands only after T8 succeeds. They require Docker, Docker Compose, and downloaded `compose.yaml`; no repository clone or source compilation is needed.
+The official container image `ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2` is publicly available on GitHub Container Registry (GHCR) with multi-architecture support for `linux/amd64` and `linux/arm64`. The default `compose.yaml` targets this official image automatically.
 
-1. Download `compose.yaml`:
+1. Download `compose.yaml` and start the container:
    ```bash
+   mkdir -p cubycrate && cd cubycrate
    curl -fsSLO https://raw.githubusercontent.com/septian-padli/cubycrate/main/compose.yaml
-   export CUBYCRATE_IMAGE=ghcr.io/septian-padli/cubycrate
-   export CUBYCRATE_VERSION=v0.0.1-alpha.2
-   docker pull ghcr.io/septian-padli/cubycrate:v0.0.1-alpha.2
-   docker compose pull
    docker compose up -d
    curl -f http://127.0.0.1:8383/health
    ```
    The probe returns `{"status":"ok"}` with HTTP 200. Open `http://localhost:8383/setup` or `http://<server-ip>:8383/setup` to configure the first administrator. This path needs only Docker, Compose, and `compose.yaml`; it does not clone or compile source.
 
-Compose uses host port 8383, internal port 8383, and named volume `cubycrate_data` by default. Set `CUBYCRATE_PORT` to override the host port and `CUBYCRATE_VOLUME_NAME` to choose a different named volume.
+Compose uses host port 8383, internal port 8383, and named volume `cubycrate_data` by default. Set `CUBYCRATE_PORT` to override the host port, `CUBYCRATE_VOLUME_NAME` to choose a different named volume, or `CUBYCRATE_VERSION` to pin a specific tag.
 
 ### Option B: Local Source Build (Dev / Pre-Release)
 
-Until the GHCR image is published or when developing locally, clone the full repository because `docker build` needs the complete build context, not only `compose.yaml`:
+When developing locally or testing unreleased changes, clone the repository and build the container locally:
 
-1. Clone, build, start Compose, and check health:
+1. Clone, build, start Compose with the dev override, and check health:
    ```bash
    git clone https://github.com/septian-padli/cubycrate.git
    cd cubycrate
    docker build -t cubycrate:local .
-   docker compose up -d
+   CUBYCRATE_IMAGE=cubycrate CUBYCRATE_VERSION=local docker compose up -d
    curl -f http://127.0.0.1:8383/health
    ```
 
 2. Open `http://localhost:8383/setup` to finish configuration.
-
 ---
 
 ## 3. Upgrading CubyCrate
@@ -69,8 +65,8 @@ Compatible CubyCrate releases store persistent data in `/app/data` (`cubycrate_d
 1. **Before upgrades:** Follow the cold full-volume backup procedure in section 5 and verify the archive before changing images. Keep a copy outside the application volume. Do not use `docker compose down -v`.
 
 2. Update image:
-   - For GHCR releases (after publication): set `CUBYCRATE_IMAGE=ghcr.io/septian-padli/cubycrate` and `CUBYCRATE_VERSION=<target-tag>`, then run `docker compose pull`.
-   - For source development, run `git pull` from the repository root and `docker build -t cubycrate:local .`.
+   - For official GHCR installations: run `docker compose pull` (or set `CUBYCRATE_VERSION=<target-tag>` to pin a specific newer release).
+   - For source development: run `git pull` from the repository root, rebuild with `docker build -t cubycrate:local .`, and start with `CUBYCRATE_IMAGE=cubycrate CUBYCRATE_VERSION=local docker compose up -d`.
 
 3. Restart with the selected image using `docker compose up -d`.
 

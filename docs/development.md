@@ -1,7 +1,6 @@
 # Development Guide
 
-This guide covers running CubyCrate from source. The repository's Docker image currently has a Go toolchain mismatch; see the container build note in the [README](../README.md#container-build-status).
-
+This guide covers running CubyCrate from source and local container builds.
 ## Requirements
 
 - Go **1.25.0 or newer** (`apps/backend/go.mod`)
@@ -48,6 +47,28 @@ bun run dev --host 127.0.0.1 --port 5188
 ```
 
 The selected `DATA_DIR_PATH` persists the SQLite database and file data between local runs. Keep it outside version control and back it up if it contains data you need.
+
+## Local container development
+
+To test container builds locally without pulling from GHCR:
+
+```bash
+docker build -t cubycrate:local .
+CUBYCRATE_IMAGE=cubycrate CUBYCRATE_VERSION=local docker compose up -d
+```
+
+To run a local development container alongside an existing official instance on the same host:
+
+```bash
+CUBYCRATE_IMAGE=cubycrate \
+CUBYCRATE_VERSION=local \
+CUBYCRATE_PORT=8384 \
+CUBYCRATE_CONTAINER_NAME=cubycrate-dev \
+CUBYCRATE_VOLUME_NAME=cubycrate_dev_data \
+docker compose up -d
+```
+
+This prevents port collisions (`8383` vs `8384`) and keeps development data strictly separated from official application volumes.
 
 ## Optional S3-compatible development service
 
