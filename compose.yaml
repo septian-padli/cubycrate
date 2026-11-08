@@ -1,8 +1,8 @@
 services:
   cubycrate:
-    # Until T7 publishes GHCR, set CUBYCRATE_IMAGE to a locally built image.
-    image: ${CUBYCRATE_IMAGE:-cubycrate}:${CUBYCRATE_VERSION:-local}
-    container_name: cubycrate
+    # Official GHCR image default (v0.0.1-alpha.2). Override with CUBYCRATE_IMAGE/CUBYCRATE_VERSION for local development or custom tags.
+    image: ${CUBYCRATE_IMAGE:-ghcr.io/septian-padli/cubycrate}:${CUBYCRATE_VERSION:-v0.0.1-alpha.2}
+    container_name: ${CUBYCRATE_CONTAINER_NAME:-cubycrate}
     restart: unless-stopped
     ports:
       - "${CUBYCRATE_PORT:-8383}:8383"
